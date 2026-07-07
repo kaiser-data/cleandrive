@@ -21,6 +21,8 @@
     "host": "",
     "user": "",
     "path": "/mnt/external/mac-archive",
-    "note": "Set host to your Tailscale device name once the machine with the external drive is online."
+    "sshKey": "",
+    "sshPort": 22,
+    "note": "host = Tailscale device name. sshKey/sshPort optional: leave sshKey blank to use the SSH agent; set sshPort only if the remote is not on 22."
   }
 }

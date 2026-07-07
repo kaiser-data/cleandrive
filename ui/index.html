@@ -154,6 +154,8 @@
     <div class="frow"><label>Host</label><input id="rHost" placeholder="raspberrypi (tailscale name)"></div>
     <div class="frow"><label>User</label><input id="rUser" placeholder="pi"></div>
     <div class="frow"><label>Path</label><input id="rPath" placeholder="/mnt/external/mac-archive"></div>
+    <div class="frow"><label>SSH key</label><input id="rKey" placeholder="~/.ssh/id_ed25519 (optional — blank uses agent)"></div>
+    <div class="frow"><label>SSH port</label><input id="rPort" placeholder="22 (optional)"></div>
     <div style="display:flex;gap:8px;align-items:center">
       <button id="rSave">Save</button>
       <button id="rTest">Test connection</button>
@@ -337,6 +339,7 @@ async function refresh() {
   const cfgR = st.config?.remote || {};
   if (document.activeElement?.tagName !== 'INPUT') {
     $('rHost').value = cfgR.host || ''; $('rUser').value = cfgR.user || ''; $('rPath').value = cfgR.path || '';
+    $('rKey').value = cfgR.sshKey || ''; $('rPort').value = cfgR.sshPort || '';
   }
   $('rescan').textContent = st.scanning ? 'Scanning… (' + (st.scanStep || '') + ')' : 'Rescan';
   $('rescan').disabled = st.scanning;
@@ -347,7 +350,7 @@ async function refresh() {
 
 $('rescan').onclick = async () => { await api('/api/scan', {}); refresh(); };
 $('rSave').onclick = async () => {
-  await api('/api/remote/config', { host: $('rHost').value.trim(), user: $('rUser').value.trim(), path: $('rPath').value.trim() });
+  await api('/api/remote/config', { host: $('rHost').value.trim(), user: $('rUser').value.trim(), path: $('rPath').value.trim(), sshKey: $('rKey').value.trim(), sshPort: $('rPort').value.trim() });
   $('rStatus').textContent = 'saved'; setTimeout(() => $('rStatus').textContent = '', 1500);
 };
 $('rTest').onclick = async () => {
