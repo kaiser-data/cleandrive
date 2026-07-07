@@ -80,7 +80,11 @@
   .rowbtns { display: flex; gap: 6px; }
   .rowbtns button { padding: 3px 10px; font-size: 12px; }
   .st { font-size: 11.5px; font-weight: 600; }
-  .st.approved { color: var(--seq-mid); } .st.done { color: var(--good-ink); } .st.failed { color: var(--critical); } .st.skipped { color: var(--muted); }
+  .st.approved { color: var(--seq-mid); } .st.done { color: var(--good-ink); } .st.failed { color: var(--critical); } .st.skipped { color: var(--muted); } .st.reviewed { color: var(--c-appdata); }
+  .filters .divider { width: 1px; background: var(--grid); margin: 0 2px; align-self: stretch; }
+  .filters button.toggle { border-style: dashed; }
+  .filters button.toggle.on { background: var(--c-appdata); border-color: transparent; color: #fff; }
+  .rowbtns button.reviewed { background: var(--c-appdata); border-color: transparent; color: #fff; }
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
   @media (max-width: 900px) { .grid2 { grid-template-columns: 1fr; } }
   .logbox { font-family: ui-monospace, monospace; font-size: 11.5px; background: var(--page); border: 1px solid var(--grid); border-radius: 8px; padding: 10px; height: 240px; overflow-y: auto; white-space: pre-wrap; color: var(--ink-2); }
@@ -277,10 +281,23 @@ function render() {
     b.onclick = () => { S.filter = c; render(); };
     fl.appendChild(b);
   }
+  // Review-progress: how many review-only items are handled (reviewed or skipped)
+  const reviewItems = scan.items.filter((i) => CAT[i.category].risk === 'review');
+  const handled = reviewItems.filter((i) => ['reviewed', 'skipped'].includes(planOf(i).status)).length;
+  if (reviewItems.length) {
+    const div = document.createElement('span'); div.className = 'divider'; fl.appendChild(div);
+    const t = document.createElement('button');
+    t.className = 'toggle' + (S.hideReviewed ? ' on' : '');
+    t.textContent = (S.hideReviewed ? '☑' : '☐') + ' Hide handled — ' + handled + '/' + reviewItems.length + ' reviewed';
+    t.title = 'Hide review-only items you have marked reviewed or skipped';
+    t.onclick = () => { S.hideReviewed = !S.hideReviewed; render(); };
+    fl.appendChild(t);
+  }
 
   // table
   const rows = $('rows'); rows.innerHTML = '';
-  const visible = scan.items.filter((i) => S.filter === 'all' || i.category === S.filter);
+  const visible = scan.items.filter((i) => S.filter === 'all' || i.category === S.filter)
+    .filter((i) => !(S.hideReviewed && CAT[i.category].risk === 'review' && ['reviewed', 'skipped'].includes(planOf(i).status)));
   for (const it of visible.slice(0, 80)) {
     const p = planOf(it);
     const act = effectiveAction(it);
@@ -295,12 +312,16 @@ function render() {
       + '<td><span class="st ' + (p.status || '') + '">' + (p.status || '·') + '</span></td>'
       + '<td><div class="rowbtns">'
       + (opts.length && !['keep'].includes(act) ? '<button data-a="approve">' + (p.status === 'approved' ? 'Unapprove' : 'Approve') + '</button>' : '')
+      + (!opts.length && !it.protected ? '<button data-a="review" class="' + (p.status === 'reviewed' ? 'reviewed' : '') + '">' + (p.status === 'reviewed' ? '✓ Reviewed' : 'Mark reviewed') + '</button>' : '')
       + '<button data-a="skip">Skip</button></div></td>';
     const sel = tr.querySelector('select');
     if (sel) sel.onchange = async () => { await api('/api/plan', { id: it.id, action: sel.value }); refresh(); };
     tr.querySelectorAll('button').forEach((b) => {
       b.onclick = async () => {
-        const status = b.dataset.a === 'skip' ? 'skipped' : (p.status === 'approved' ? 'proposed' : 'approved');
+        let status;
+        if (b.dataset.a === 'skip') status = p.status === 'skipped' ? 'proposed' : 'skipped';
+        else if (b.dataset.a === 'review') status = p.status === 'reviewed' ? 'proposed' : 'reviewed';
+        else status = p.status === 'approved' ? 'proposed' : 'approved';
         await api('/api/plan', { id: it.id, status, action: sel ? sel.value : it.suggest });
         refresh();
       };
