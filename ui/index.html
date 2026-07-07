@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CleanDrive</title>
+<style>
+  :root {
+    --page: #f9f9f7; --surface: #fcfcfb;
+    --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+    --grid: #e1e0d9; --baseline: #c3c2b7; --border: rgba(11,11,11,0.10);
+    --c-pkgcache: #2a78d6; --c-cache: #1baf7a; --c-nm: #eda100;
+    --c-projects: #008300; --c-appdata: #4a3aa7; --c-apps: #e87ba4; --c-models: #e34948;
+    --seq-light: #86b6ef; --seq-mid: #2a78d6;
+    --good: #0ca30c; --warning: #fab219; --serious: #ec835a; --critical: #d03b3b;
+    --good-ink: #006300;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --page: #0d0d0d; --surface: #1a1a19;
+      --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
+      --grid: #2c2c2a; --baseline: #383835; --border: rgba(255,255,255,0.10);
+      --c-pkgcache: #3987e5; --c-cache: #199e70; --c-nm: #c98500;
+      --c-projects: #008300; --c-appdata: #9085e9; --c-apps: #d55181; --c-models: #e66767;
+      --seq-light: #1c5cab; --seq-mid: #3987e5;
+      --good-ink: #0ca30c;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: var(--page); color: var(--ink);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding: 24px; max-width: 1180px; margin: 0 auto;
+  }
+  h1 { font-size: 20px; font-weight: 650; }
+  h2 { font-size: 13px; font-weight: 600; color: var(--ink-2); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 12px; }
+  header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+  header .meta { color: var(--muted); font-size: 12.5px; }
+  .spacer { flex: 1; }
+  button {
+    font: inherit; font-size: 13px; padding: 6px 14px; border-radius: 7px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--surface); color: var(--ink);
+  }
+  button:hover { border-color: var(--baseline); }
+  button.primary { background: var(--seq-mid); border-color: transparent; color: #fff; }
+  button.danger { background: var(--critical); border-color: transparent; color: #fff; }
+  button:disabled { opacity: .45; cursor: default; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .tile .label { font-size: 12px; color: var(--ink-2); margin-bottom: 4px; }
+  .tile .value { font-size: 28px; font-weight: 650; letter-spacing: -.01em; }
+  .tile .sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .chip { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 600; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--ink-2); }
+  .chip .dot { width: 8px; height: 8px; border-radius: 50%; }
+  /* capacity bar */
+  .capbar { display: flex; height: 26px; border-radius: 6px; overflow: hidden; background: transparent; border: 1px solid var(--grid); }
+  .capbar .seg { height: 100%; }
+  .capbar .seg + .seg { margin-left: 2px; }
+  .caplegend { display: flex; gap: 18px; margin-top: 10px; font-size: 12.5px; color: var(--ink-2); flex-wrap: wrap; }
+  .caplegend .sw { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; border: 1px solid var(--border); }
+  /* category bars */
+  .catrow { display: grid; grid-template-columns: 170px 1fr 90px; align-items: center; gap: 12px; padding: 5px 0; }
+  .catrow .name { font-size: 13px; color: var(--ink); display: flex; align-items: center; gap: 8px; }
+  .catrow .track { height: 12px; position: relative; }
+  .catrow .bar { height: 12px; border-radius: 0 4px 4px 0; min-width: 2px; }
+  .catrow .val { font-size: 13px; color: var(--ink-2); text-align: right; font-variant-numeric: tabular-nums; }
+  /* filters + table */
+  .filters { display: flex; gap: 8px; margin: 4px 0 12px; flex-wrap: wrap; }
+  .filters button { padding: 4px 12px; border-radius: 999px; font-size: 12.5px; }
+  .filters button.on { background: var(--ink); color: var(--page); border-color: transparent; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; font-size: 11.5px; text-transform: uppercase; letter-spacing: .03em; color: var(--muted); font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--grid); }
+  td { padding: 7px 8px; border-bottom: 1px solid var(--grid); vertical-align: middle; }
+  td.num { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+  td .path { font-family: ui-monospace, monospace; font-size: 12px; word-break: break-all; }
+  td .note { color: var(--muted); font-size: 11.5px; }
+  .risk { font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+  .risk.low { color: var(--good-ink); } .risk.medium { color: var(--ink-2); } .risk.review { color: var(--ink-2); }
+  select { font: inherit; font-size: 12.5px; background: var(--surface); color: var(--ink); border: 1px solid var(--border); border-radius: 6px; padding: 3px 6px; }
+  .rowbtns { display: flex; gap: 6px; }
+  .rowbtns button { padding: 3px 10px; font-size: 12px; }
+  .st { font-size: 11.5px; font-weight: 600; }
+  .st.approved { color: var(--seq-mid); } .st.done { color: var(--good-ink); } .st.failed { color: var(--critical); } .st.skipped { color: var(--muted); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+  @media (max-width: 900px) { .grid2 { grid-template-columns: 1fr; } }
+  .logbox { font-family: ui-monospace, monospace; font-size: 11.5px; background: var(--page); border: 1px solid var(--grid); border-radius: 8px; padding: 10px; height: 240px; overflow-y: auto; white-space: pre-wrap; color: var(--ink-2); }
+  .remote input { font: inherit; font-size: 13px; padding: 6px 9px; border-radius: 7px; border: 1px solid var(--border); background: var(--page); color: var(--ink); width: 100%; }
+  .remote .frow { display: grid; grid-template-columns: 80px 1fr; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .remote label { font-size: 12.5px; color: var(--ink-2); }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 8px; }
+  /* tooltip */
+  #tip { position: fixed; pointer-events: none; background: var(--ink); color: var(--page); font-size: 12px; padding: 6px 10px; border-radius: 7px; z-index: 50; display: none; max-width: 340px; }
+  /* modal */
+  #modal { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: none; align-items: center; justify-content: center; z-index: 40; }
+  #modal .box { background: var(--surface); border-radius: 14px; padding: 24px; width: 440px; max-width: 92vw; }
+  #modal input { font: inherit; width: 100%; padding: 8px 10px; margin: 12px 0; border-radius: 7px; border: 1px solid var(--border); background: var(--page); color: var(--ink); }
+  #modal ul { margin: 10px 0 4px 18px; font-size: 12.5px; color: var(--ink-2); max-height: 180px; overflow-y: auto; }
+  section { margin-top: 16px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>CleanDrive</h1>
+  <span class="meta" id="scanTs">no scan yet</span>
+  <span class="spacer"></span>
+  <span class="chip" id="diskChip"></span>
+  <button id="rescan">Rescan</button>
+</header>
+
+<div class="tiles">
+  <div class="card tile"><div class="label">Disk used</div><div class="value" id="tUsed">–</div><div class="sub" id="tUsedSub"></div></div>
+  <div class="card tile"><div class="label">Free now</div><div class="value" id="tFree">–</div><div class="sub">on the data volume</div></div>
+  <div class="card tile"><div class="label">Reclaimable, low risk</div><div class="value" id="tReclaim">–</div><div class="sub">caches + node_modules</div></div>
+  <div class="card tile"><div class="label">Approved in plan</div><div class="value" id="tPlan">–</div><div class="sub" id="tPlanSub">nothing approved yet</div></div>
+</div>
+
+<div class="card">
+  <h2>Capacity</h2>
+  <div class="capbar" id="capbar"></div>
+  <div class="caplegend" id="caplegend"></div>
+</div>
+
+<section class="card">
+  <h2>Where the space goes</h2>
+  <div id="catbars"></div>
+  <div class="hint">Project sizes exclude their node_modules (listed separately). App data and models are review-only — the dashboard never deletes them.</div>
+</section>
+
+<section class="card">
+  <h2>Items</h2>
+  <div class="filters" id="filters"></div>
+  <div style="overflow-x:auto"><table>
+    <thead><tr><th>Path</th><th style="text-align:right">Size</th><th>Risk</th><th>Action</th><th>Status</th><th></th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table></div>
+</section>
+
+<div class="grid2">
+  <div class="card">
+    <h2>Plan &amp; execution</h2>
+    <div id="planSummary" style="font-size:13px;color:var(--ink-2);margin-bottom:10px">No approved actions.</div>
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <button class="danger" id="execBtn" disabled>Execute plan…</button>
+      <button id="dryrunBtn" disabled>Dry-run archives</button>
+    </div>
+    <div class="logbox" id="logbox">idle</div>
+  </div>
+  <div class="card remote">
+    <h2>Remote archive target (SSH / Tailscale)</h2>
+    <div class="frow"><label>Host</label><input id="rHost" placeholder="raspberrypi (tailscale name)"></div>
+    <div class="frow"><label>User</label><input id="rUser" placeholder="pi"></div>
+    <div class="frow"><label>Path</label><input id="rPath" placeholder="/mnt/external/mac-archive"></div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button id="rSave">Save</button>
+      <button id="rTest">Test connection</button>
+      <span id="rStatus" class="risk" style="font-size:12px"></span>
+    </div>
+    <div class="hint">Archives are rsync'd preserving the path relative to your home folder, then checksum-verified. Local copies are only removed with the “archive + remove local” action, and only after verification succeeds.</div>
+  </div>
+</div>
+
+<div id="tip"></div>
+<div id="modal"><div class="box">
+  <h2 style="margin-bottom:6px">Execute approved actions</h2>
+  <div style="font-size:13px;color:var(--ink-2)" id="modalSummary"></div>
+  <ul id="modalList"></ul>
+  <div style="font-size:12.5px;color:var(--ink-2)">Type <b>FREE</b> to confirm. Deletes are permanent; archives are verified before any local removal.</div>
+  <input id="confirmWord" placeholder="FREE" autocomplete="off">
+  <div style="display:flex;gap:8px;justify-content:flex-end">
+    <button id="modalCancel">Cancel</button>
+    <button class="danger" id="modalGo" disabled>Execute</button>
+  </div>
+</div></div>
+
+<script>
+const CAT = {
+  pkgcache:   { label: 'Package caches',  color: 'var(--c-pkgcache)', risk: 'low' },
+  cache:      { label: 'App & tool caches', color: 'var(--c-cache)',  risk: 'low' },
+  node_modules:{ label: 'node_modules',   color: 'var(--c-nm)',       risk: 'low' },
+  projects:   { label: 'Projects',        color: 'var(--c-projects)', risk: 'medium' },
+  appdata:    { label: 'App data',        color: 'var(--c-appdata)',  risk: 'review' },
+  apps:       { label: 'Applications',    color: 'var(--c-apps)',     risk: 'review' },
+  models:     { label: 'AI models',       color: 'var(--c-models)',   risk: 'review' },
+};
+const RISK_LABEL = { low: '✓ low risk', medium: '⚠ verify first', review: '◉ manual review' };
+const ACTIONS = {
+  pkgcache: ['clean', 'rm'], cache: ['rm'], node_modules: ['rm'],
+  projects: ['archive', 'archive+rm', 'keep'], appdata: [], apps: [], models: [],
+};
+let S = { scan: null, plan: { items: {} }, filter: 'all', executing: false };
+const $ = (id) => document.getElementById(id);
+const gb = (kb) => { const g = kb/1048576; return g >= 10 ? g.toFixed(0)+' GB' : g >= 1 ? g.toFixed(1)+' GB' : (kb/1024).toFixed(0)+' MB'; };
+const esc = (s) => s.replace(/[&<>"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+async function api(path, body) {
+  const r = await fetch(path, body ? { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) } : undefined);
+  return r.json();
+}
+
+function planOf(it) { return S.plan.items[it.id] || {}; }
+function effectiveAction(it) { return planOf(it).action || it.suggest; }
+function isApproved(it) { return planOf(it).status === 'approved'; }
+
+function tip(el, html) {
+  el.addEventListener('mousemove', (e) => { const t = $('tip'); t.innerHTML = html(); t.style.display = 'block'; t.style.left = Math.min(e.clientX + 14, innerWidth - 360) + 'px'; t.style.top = (e.clientY + 14) + 'px'; });
+  el.addEventListener('mouseleave', () => { $('tip').style.display = 'none'; });
+}
+
+function render() {
+  const scan = S.scan;
+  if (!scan) return;
+  const d = S.disk || scan.disk;
+  $('scanTs').textContent = 'scanned ' + new Date(scan.ts).toLocaleString();
+  $('tUsed').textContent = d.pct + '%';
+  $('tUsedSub').textContent = gb(d.usedKB) + ' of ' + gb(d.sizeKB);
+  $('tFree').textContent = gb(d.availKB);
+
+  const chip = $('diskChip');
+  const level = d.pct >= 95 ? ['critical', '⛔ critical'] : d.pct >= 85 ? ['serious', '⚠ tight'] : ['good', '✓ healthy'];
+  chip.innerHTML = '<span class="dot" style="background:var(--' + level[0] + ')"></span>' + level[1] + ' · ' + d.pct + '% full';
+
+  const lowRisk = scan.items.filter((i) => CAT[i.category]?.risk === 'low');
+  const reclaimKB = lowRisk.reduce((s, i) => s + i.kb, 0);
+  $('tReclaim').textContent = gb(reclaimKB);
+  const approved = scan.items.filter(isApproved);
+  const apKB = approved.reduce((s, i) => s + i.kb, 0);
+  $('tPlan').textContent = approved.length ? gb(apKB) : '0';
+  $('tPlanSub').textContent = approved.length ? approved.length + ' action(s) approved' : 'nothing approved yet';
+  $('execBtn').disabled = !approved.length || S.executing;
+  $('dryrunBtn').disabled = !approved.some((i) => (effectiveAction(i) || '').startsWith('archive')) || S.executing;
+  $('planSummary').textContent = approved.length
+    ? approved.length + ' approved action(s), ~' + gb(apKB) + ' affected.'
+    : 'No approved actions. Approve items in the table above.';
+
+  // capacity bar: other-used | reclaimable | free (APFS: used+avail is the real total)
+  const totKB = d.usedKB + d.availKB;
+  const otherKB = Math.max(0, d.usedKB - reclaimKB);
+  const segs = [
+    { kb: otherKB, color: 'var(--seq-mid)', label: 'Used (everything else)' },
+    { kb: reclaimKB, color: 'var(--seq-light)', label: 'Reclaimable low-risk (caches, node_modules)' },
+    { kb: d.availKB, color: 'transparent', label: 'Free' },
+  ];
+  const bar = $('capbar'); bar.innerHTML = '';
+  const leg = $('caplegend'); leg.innerHTML = '';
+  for (const s of segs) {
+    const el = document.createElement('div');
+    el.className = 'seg';
+    el.style.width = (s.kb / totKB * 100) + '%';
+    el.style.background = s.color;
+    tip(el, () => '<b>' + s.label + '</b><br>' + gb(s.kb) + ' · ' + (s.kb / totKB * 100).toFixed(1) + '%');
+    bar.appendChild(el);
+    leg.insertAdjacentHTML('beforeend', '<span><span class="sw" style="background:' + s.color + '"></span>' + s.label + ' — ' + gb(s.kb) + '</span>');
+  }
+
+  // category bars
+  const totals = Object.keys(CAT).map((k) => ({ k, kb: scan.items.filter((i) => i.category === k).reduce((s, i) => s + i.kb, 0) }));
+  const maxKB = Math.max(...totals.map((t) => t.kb), 1);
+  const cb = $('catbars'); cb.innerHTML = '';
+  for (const t of totals) {
+    if (!t.kb) continue;
+    const row = document.createElement('div');
+    row.className = 'catrow';
+    row.innerHTML = '<span class="name"><span class="sw" style="display:inline-block;width:10px;height:10px;border-radius:3px;background:' + CAT[t.k].color + '"></span>' + CAT[t.k].label + '</span>'
+      + '<span class="track"><span class="bar" style="width:' + (t.kb / maxKB * 100) + '%;background:' + CAT[t.k].color + '"></span></span>'
+      + '<span class="val">' + gb(t.kb) + '</span>';
+    tip(row.querySelector('.track'), () => '<b>' + CAT[t.k].label + '</b><br>' + gb(t.kb) + ' across ' + scan.items.filter((i) => i.category === t.k).length + ' item(s)');
+    cb.appendChild(row);
+  }
+
+  // filters
+  const fl = $('filters'); fl.innerHTML = '';
+  const cats = ['all', ...Object.keys(CAT).filter((k) => scan.items.some((i) => i.category === k))];
+  for (const c of cats) {
+    const b = document.createElement('button');
+    b.textContent = c === 'all' ? 'All' : CAT[c].label;
+    b.className = S.filter === c ? 'on' : '';
+    b.onclick = () => { S.filter = c; render(); };
+    fl.appendChild(b);
+  }
+
+  // table
+  const rows = $('rows'); rows.innerHTML = '';
+  const visible = scan.items.filter((i) => S.filter === 'all' || i.category === S.filter);
+  for (const it of visible.slice(0, 80)) {
+    const p = planOf(it);
+    const act = effectiveAction(it);
+    const opts = it.protected ? [] : (ACTIONS[it.category] || []);
+    const tr = document.createElement('tr');
+    const shortPath = it.path.replace(/^\/Users\/[^/]+/, '~');
+    tr.innerHTML =
+      '<td><div class="path">' + esc(shortPath) + '</div><div class="note">' + esc(it.note || '') + '</div></td>'
+      + '<td class="num">' + gb(it.kb) + '</td>'
+      + '<td><span class="risk ' + CAT[it.category].risk + '">' + (it.protected ? '🔒 protected' : RISK_LABEL[CAT[it.category].risk]) + '</span></td>'
+      + '<td>' + (opts.length ? '<select>' + opts.map((o) => '<option' + (o === act ? ' selected' : '') + '>' + o + '</option>').join('') + '</select>' : '<span class="note">' + esc(it.suggest) + '</span>') + '</td>'
+      + '<td><span class="st ' + (p.status || '') + '">' + (p.status || '·') + '</span></td>'
+      + '<td><div class="rowbtns">'
+      + (opts.length && !['keep'].includes(act) ? '<button data-a="approve">' + (p.status === 'approved' ? 'Unapprove' : 'Approve') + '</button>' : '')
+      + '<button data-a="skip">Skip</button></div></td>';
+    const sel = tr.querySelector('select');
+    if (sel) sel.onchange = async () => { await api('/api/plan', { id: it.id, action: sel.value }); refresh(); };
+    tr.querySelectorAll('button').forEach((b) => {
+      b.onclick = async () => {
+        const status = b.dataset.a === 'skip' ? 'skipped' : (p.status === 'approved' ? 'proposed' : 'approved');
+        await api('/api/plan', { id: it.id, status, action: sel ? sel.value : it.suggest });
+        refresh();
+      };
+    });
+    rows.appendChild(tr);
+  }
+  if (visible.length > 80) rows.insertAdjacentHTML('beforeend', '<tr><td colspan="6" class="note" style="padding:10px 8px">… ' + (visible.length - 80) + ' smaller items not shown (see CLI: cleandrive state)</td></tr>');
+}
+
+async function refresh() {
+  const st = await api('/api/state');
+  S.scan = st.scan; S.plan = st.plan || { items: {} }; S.disk = st.disk; S.executing = st.executing;
+  const cfgR = st.config?.remote || {};
+  if (document.activeElement?.tagName !== 'INPUT') {
+    $('rHost').value = cfgR.host || ''; $('rUser').value = cfgR.user || ''; $('rPath').value = cfgR.path || '';
+  }
+  $('rescan').textContent = st.scanning ? 'Scanning… (' + (st.scanStep || '') + ')' : 'Rescan';
+  $('rescan').disabled = st.scanning;
+  const lb = $('logbox');
+  if (st.log?.length) { lb.textContent = st.log.join('\n'); lb.scrollTop = lb.scrollHeight; }
+  render();
+}
+
+$('rescan').onclick = async () => { await api('/api/scan', {}); refresh(); };
+$('rSave').onclick = async () => {
+  await api('/api/remote/config', { host: $('rHost').value.trim(), user: $('rUser').value.trim(), path: $('rPath').value.trim() });
+  $('rStatus').textContent = 'saved'; setTimeout(() => $('rStatus').textContent = '', 1500);
+};
+$('rTest').onclick = async () => {
+  $('rStatus').textContent = 'testing…';
+  const r = await api('/api/remote/test', {});
+  $('rStatus').textContent = (r.ok ? '✓ ' : '✗ ') + r.msg;
+  $('rStatus').style.color = r.ok ? 'var(--good-ink)' : 'var(--critical)';
+};
+$('dryrunBtn').onclick = async () => { await api('/api/offload/dryrun', {}); };
+$('execBtn').onclick = () => {
+  const approved = S.scan.items.filter(isApproved);
+  $('modalSummary').textContent = approved.length + ' action(s), ~' + gb(approved.reduce((s, i) => s + i.kb, 0)) + ':';
+  $('modalList').innerHTML = approved.map((i) => '<li>' + esc(effectiveAction(i)) + ' — ' + esc(i.path.replace(/^\/Users\/[^/]+/, '~')) + ' (' + gb(i.kb) + ')</li>').join('');
+  $('confirmWord').value = ''; $('modalGo').disabled = true;
+  $('modal').style.display = 'flex'; $('confirmWord').focus();
+};
+$('confirmWord').oninput = () => { $('modalGo').disabled = $('confirmWord').value.trim() !== 'FREE'; };
+$('modalCancel').onclick = () => { $('modal').style.display = 'none'; };
+$('modalGo').onclick = async () => {
+  $('modal').style.display = 'none';
+  await api('/api/execute', { confirm: 'FREE' });
+  refresh();
+};
+
+refresh();
+setInterval(refresh, 2500);
+</script>
+</body>
+</html>

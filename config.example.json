@@ -1,0 +1,26 @@
+{
+  "port": 4499,
+  "staleDays": 60,
+  "minCacheMB": 100,
+  "minAppDataMB": 500,
+  "projectRoots": [
+    "~/code",
+    "~/projects"
+  ],
+  "extraDirs": [
+    "~/work",
+    "~/experiments"
+  ],
+  "protected": [
+    "~/Library/Application Support/Claude",
+    "~/.claude",
+    "~/.claude-mem"
+  ],
+  "remote": {
+    "enabled": false,
+    "host": "",
+    "user": "",
+    "path": "/mnt/external/mac-archive",
+    "note": "Set host to your Tailscale device name once the machine with the external drive is online."
+  }
+}

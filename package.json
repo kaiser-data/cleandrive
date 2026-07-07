@@ -1,0 +1,13 @@
+{
+  "name": "cleandrive",
+  "version": "0.1.0",
+  "description": "Disk cleanup dashboard: scan, categorize, plan, clean caches, archive to remote via rsync over Tailscale SSH",
+  "type": "module",
+  "bin": { "cleandrive": "bin/cleandrive.js" },
+  "scripts": {
+    "scan": "node bin/cleandrive.js scan",
+    "serve": "node bin/cleandrive.js serve",
+    "state": "node bin/cleandrive.js state"
+  },
+  "engines": { "node": ">=20" }
+}

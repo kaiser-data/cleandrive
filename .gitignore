@@ -1,0 +1,18 @@
+# Real scan output — contains your machine's actual paths. Never commit.
+data/*.json
+data/*.log
+data/
+
+# Your real config (has project roots + remote host). Ship config.example.json instead.
+config.json
+
+# Playwright's raw recording (keep the processed demo.gif / demo.mp4 / pngs)
+media/*.webm
+media/page@*.webm
+
+# Knowledge graph output
+graphify-out/
+
+node_modules/
+.DS_Store
+*.log
