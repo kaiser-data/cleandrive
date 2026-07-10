@@ -127,7 +127,7 @@
 <section class="card">
   <h2>Where the space goes</h2>
   <div id="catbars"></div>
-  <div class="hint">Project sizes exclude their node_modules (listed separately). App data and models are review-only — the dashboard never deletes them.</div>
+  <div class="hint">Project sizes exclude their node_modules (listed separately). App data and AI models unlock deletion only after you mark them reviewed — then choose rm, approve, and confirm. Applications are never deleted by the dashboard.</div>
 </section>
 
 <section class="card">
@@ -142,6 +142,7 @@
 <div class="grid2">
   <div class="card">
     <h2>Plan &amp; execution</h2>
+    <div class="filters" id="presets"></div>
     <div id="planSummary" style="font-size:13px;color:var(--ink-2);margin-bottom:10px">No approved actions.</div>
     <div style="display:flex;gap:8px;margin-bottom:12px">
       <button class="danger" id="execBtn" disabled>Execute plan…</button>
@@ -193,6 +194,14 @@ const ACTIONS = {
   pkgcache: ['clean', 'rm'], cache: ['rm'], node_modules: ['rm'],
   projects: ['archive', 'archive+rm', 'keep'], appdata: [], apps: [], models: [],
 };
+// review-only categories where rm unlocks after "Mark reviewed"; apps stay manual
+const REVIEW_RM = ['appdata', 'models'];
+function actionsFor(it) {
+  if (it.protected) return [];
+  const base = ACTIONS[it.category] || [];
+  if (base.length) return base;
+  return REVIEW_RM.includes(it.category) && planOf(it).reviewed ? ['keep', 'rm'] : [];
+}
 let S = { scan: null, plan: { items: {} }, filter: 'all', executing: false };
 const $ = (id) => document.getElementById(id);
 const gb = (kb) => { const g = kb/1048576; return g >= 10 ? g.toFixed(0)+' GB' : g >= 1 ? g.toFixed(1)+' GB' : (kb/1024).toFixed(0)+' MB'; };
@@ -237,6 +246,37 @@ function render() {
   $('planSummary').textContent = approved.length
     ? approved.length + ' approved action(s), ~' + gb(apKB) + ' affected.'
     : 'No approved actions. Approve items in the table above.';
+
+  // one-click presets: bulk-approve whole low-risk groups with their suggested action
+  const presetDefs = [
+    { label: 'caches', cats: ['pkgcache', 'cache'] },
+    { label: 'caches + node_modules', cats: ['pkgcache', 'cache', 'node_modules'] },
+  ];
+  const pr = $('presets'); pr.innerHTML = '';
+  for (const def of presetDefs) {
+    const eligible = scan.items.filter((i) => def.cats.includes(i.category) && !i.protected
+      && !['done', 'skipped'].includes(planOf(i).status));
+    if (!eligible.length) continue;
+    const kb = eligible.reduce((s, i) => s + i.kb, 0);
+    const b = document.createElement('button');
+    b.textContent = 'Select ' + def.label + ' — ' + gb(kb);
+    b.disabled = S.executing;
+    b.onclick = async () => {
+      await api('/api/plan/bulk', { changes: eligible.map((i) => ({ id: i.id, status: 'approved', action: planOf(i).action || i.suggest })) });
+      refresh();
+    };
+    pr.appendChild(b);
+  }
+  if (approved.length) {
+    const c = document.createElement('button');
+    c.textContent = 'Clear selection';
+    c.disabled = S.executing;
+    c.onclick = async () => {
+      await api('/api/plan/bulk', { changes: approved.map((i) => ({ id: i.id, status: 'proposed' })) });
+      refresh();
+    };
+    pr.appendChild(c);
+  }
 
   // capacity bar: other-used | reclaimable | free (APFS: used+avail is the real total)
   const totKB = d.usedKB + d.availKB;
@@ -302,8 +342,9 @@ function render() {
     .filter((i) => !(S.hideReviewed && CAT[i.category].risk === 'review' && ['reviewed', 'skipped'].includes(planOf(i).status)));
   for (const it of visible.slice(0, 80)) {
     const p = planOf(it);
-    const act = effectiveAction(it);
-    const opts = it.protected ? [] : (ACTIONS[it.category] || []);
+    const opts = actionsFor(it);
+    // review items default to 'keep' so rm is always a deliberate pick
+    const act = opts.length && !opts.includes(effectiveAction(it)) ? opts[0] : effectiveAction(it);
     const tr = document.createElement('tr');
     const shortPath = it.path.replace(/^\/Users\/[^/]+/, '~');
     tr.innerHTML =
@@ -314,15 +355,19 @@ function render() {
       + '<td><span class="st ' + (p.status || '') + '">' + (p.status || '·') + '</span></td>'
       + '<td><div class="rowbtns">'
       + (opts.length && !['keep'].includes(act) ? '<button data-a="approve">' + (p.status === 'approved' ? 'Unapprove' : 'Approve') + '</button>' : '')
-      + (!opts.length && !it.protected ? '<button data-a="review" class="' + (p.status === 'reviewed' ? 'reviewed' : '') + '">' + (p.status === 'reviewed' ? '✓ Reviewed' : 'Mark reviewed') + '</button>' : '')
+      + (CAT[it.category].risk === 'review' && !it.protected ? '<button data-a="review" class="' + (p.status === 'reviewed' ? 'reviewed' : '') + '">' + (p.status === 'reviewed' ? '✓ Reviewed' : 'Mark reviewed') + '</button>' : '')
       + '<button data-a="skip">Skip</button></div></td>';
     const sel = tr.querySelector('select');
     if (sel) sel.onchange = async () => { await api('/api/plan', { id: it.id, action: sel.value }); refresh(); };
     tr.querySelectorAll('button').forEach((b) => {
       b.onclick = async () => {
+        if (b.dataset.a === 'review') {
+          const on = p.status !== 'reviewed';
+          await api('/api/plan', { id: it.id, status: on ? 'reviewed' : 'proposed', reviewed: on });
+          return refresh();
+        }
         let status;
         if (b.dataset.a === 'skip') status = p.status === 'skipped' ? 'proposed' : 'skipped';
-        else if (b.dataset.a === 'review') status = p.status === 'reviewed' ? 'proposed' : 'reviewed';
         else status = p.status === 'approved' ? 'proposed' : 'approved';
         await api('/api/plan', { id: it.id, status, action: sel ? sel.value : it.suggest });
         refresh();

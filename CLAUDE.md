@@ -41,7 +41,10 @@ Files:
 - `rm` is allowed only for categories `pkgcache`, `cache`, `node_modules`
   (regenerable data). `projects` can only be archived; local removal happens
   solely via `archive+rm` after an rsync checksum verification passes.
-- `appdata` and `models` are review-only: the tool never deletes them.
+- `appdata` and `models` are review-only by default: `rm` is refused unless the
+  user has explicitly marked the item reviewed (dashboard "Mark reviewed" or
+  `cleandrive review <id>`), and even then it still requires approve + FREE.
+  `apps` is always manual — the tool never deletes applications.
 - `config.protected` paths are hard-locked: flagged 🔒 in the scan, forced to
   `keep`, non-actionable in the UI, and refused at execution even if an action is
   forged. Currently protects Claude agent/vibe-coding history: the Claude desktop
@@ -58,5 +61,5 @@ Files:
 | cache | low | rm (apps rebuild) |
 | node_modules | low | rm (reinstall per project) |
 | projects | medium | archive / archive+rm / keep — stale = no file touched in `staleDays` |
-| appdata | review | manual only |
-| models | review | manual only (e.g. `ollama rm`) |
+| appdata | review | rm only after explicit review (`cleandrive review <id>`) |
+| models | review | rm only after explicit review, or via the owning tool (e.g. `ollama rm`) |

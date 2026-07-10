@@ -71,6 +71,12 @@ switch (cmd) {
       console.log(`skipped ${id}`);
     }
     break;
+  case 'review':
+    for (const id of args.filter((a) => !a.startsWith('--'))) {
+      setPlanItem(id, { status: 'reviewed', reviewed: true });
+      console.log(`reviewed ${id}`);
+    }
+    break;
   case 'execute': {
     const items = approvedItems();
     if (!items.length) { console.log('nothing approved'); break; }
@@ -111,6 +117,7 @@ usage:
   cleandrive serve                  start dashboard on http://localhost:${loadConfig().port || 4499}
   cleandrive approve <id…> [--action=rm|clean|archive|archive+rm]
   cleandrive skip <id…>
+  cleandrive review <id…>           mark reviewed (unlocks rm for appdata/models)
   cleandrive execute [--dry-run]    run all approved actions
   cleandrive offload-dryrun         rsync -n approved archive items to remote
   cleandrive remote-test            check SSH reachability of configured remote`);

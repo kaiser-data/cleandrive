@@ -101,9 +101,9 @@ Open the dashboard, approve what you want gone, type `FREE`, watch it work. That
    │ cache         │ rm  (the app rebuilds it)                             │
    │ node_modules  │ rm  (reinstall per project)                          │
    │ projects      │ archive / archive+rm / keep  — NEVER a bare rm        │
-   │ appdata       │ review only — tool never deletes                     │
+   │ appdata       │ rm only after explicit "mark reviewed" + approve      │
    │ apps          │ review only — surfaced with size + last-used         │
-   │ models        │ review only — remove via the owning tool             │
+   │ models        │ rm after review — or remove via the owning tool      │
    └──────────────┴───────────────────────────────────────────────────────┘
 ```
 
