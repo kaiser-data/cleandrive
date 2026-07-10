@@ -49,6 +49,10 @@ Files:
   `keep`, non-actionable in the UI, and refused at execution even if an action is
   forged. Currently protects Claude agent/vibe-coding history: the Claude desktop
   app data, `~/.claude` (Claude Code sessions), and `~/.claude-mem` (memory).
+- `config.extraCaches` carves exact paths back out of a protected root as
+  regenerable `cache` items (e.g. the Claude desktop VM images in `vm_bundles`
+  and its Electron caches). Only the listed path itself is exempt — subpaths and
+  everything else under the protected root stay locked.
 - Protected roots (~, ~/Documents, ~/Desktop, ~/Downloads, ~/Pictures,
   ~/Library) are refused as direct targets regardless of plan content.
 - The dashboard binds to 127.0.0.1 only, and execution requires typing FREE.

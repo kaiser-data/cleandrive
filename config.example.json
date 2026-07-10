@@ -16,6 +16,11 @@
     "~/.claude",
     "~/.claude-mem"
   ],
+  "extraCaches": [
+    "~/Library/Application Support/Claude/vm_bundles",
+    "~/Library/Application Support/Claude/Cache",
+    "~/Library/Application Support/Claude/Code Cache"
+  ],
   "remote": {
     "enabled": false,
     "host": "",
